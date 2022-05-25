@@ -1,12 +1,8 @@
 {
-  "name": "gatsby-starter-minimal",
+  "name": "hmr-bug-repro",
   "version": "1.0.0",
   "private": true,
-  "description": "A Gatsby starter with no plugins and a single welcome page.",
-  "author": "Laurie Barth",
-  "keywords": [
-    "gatsby"
-  ],
+  "description": "HMR breaks with gatsby-transformer-javascript-frontmatter plugin",
   "scripts": {
     "develop": "gatsby develop",
     "start": "gatsby develop",
@@ -14,10 +10,12 @@
     "serve": "gatsby serve",
     "clean": "gatsby clean"
   },
-  "license": "0BSD",
   "dependencies": {
     "gatsby": "^4.15.0",
-    "react": "^17.0.1",
-    "react-dom": "^17.0.1"
+    "react": "^18.1.0",
+    "react-dom": "^18.1.0"
+  },
+  "devDependencies": {
+    "gatsby-transformer-javascript-frontmatter": "^4.15.0"
   }
 }
