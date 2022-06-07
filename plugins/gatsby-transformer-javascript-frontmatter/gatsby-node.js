@@ -2,6 +2,8 @@ const _ = require(`lodash`);
 const babylon = require(`@babel/parser`);
 const traverse = require(`@babel/traverse`).default;
 
+const frontmatterToken = `frontmatter`;
+
 const fileExtsToProcess = [`js`, `jsx`, `ts`, `tsx`];
 
 function unstable_shouldOnCreateNode({ node }) {
@@ -45,7 +47,6 @@ async function onCreateNode({
     ],
   };
 
-  let exportsData;
   let frontmatter;
   let error;
   try {
@@ -72,31 +73,49 @@ async function onCreateNode({
       return value;
     };
 
+    const getFrontmatterDeclarator = (declarations) =>
+      _.find(declarations, (d) => d.id.name === frontmatterToken);
+
+    const assignFields = (properties) => {
+      properties.forEach(
+        (node) => (frontmatter[node.key.name] = parseData(node.value))
+      );
+    };
+
     frontmatter = {};
     error = false;
     traverse(ast, {
+      // Support plain top-level `const frontmatter`, since export breaks fast refresh
+      VariableDeclaration: function VariableDeclaration(astPath) {
+        if (astPath.parent.type === `Program` && astPath.node.declarations) {
+          const declarator = getFrontmatterDeclarator(
+            astPath.node.declarations
+          );
+
+          if (declarator && declarator.init) {
+            assignFields(declarator.init.properties);
+          }
+        }
+      },
+      // Support class component `this.frontmatter`, e.g. in constructor
       AssignmentExpression: function AssignmentExpression(astPath) {
         if (
           astPath.node.left.type === `MemberExpression` &&
-          astPath.node.left.property.name === `frontmatter`
+          astPath.node.left.property.name === frontmatterToken
         ) {
-          astPath.node.right.properties.forEach((node) => {
-            frontmatter[node.key.name] = parseData(node.value);
-          });
+          assignFields(astPath.node.right.properties);
         }
       },
+      // Support `export const frontmatter`, which breaks fast refresh
       ExportNamedDeclaration: function ExportNamedDeclaration(astPath) {
         const { declaration } = astPath.node;
         if (declaration && declaration.type === `VariableDeclaration`) {
-          const dataVariableDeclarator = _.find(
-            declaration.declarations,
-            (d) => d.id.name === `frontmatter`
+          const dataVariableDeclarator = getFrontmatterDeclarator(
+            declaration.declarations
           );
 
           if (dataVariableDeclarator && dataVariableDeclarator.init) {
-            dataVariableDeclarator.init.properties.forEach((node) => {
-              frontmatter[node.key.name] = parseData(node.value);
-            });
+            assignFields(dataVariableDeclarator.init.properties);
           }
         }
       },
@@ -113,11 +132,6 @@ async function onCreateNode({
   } finally {
     // only create node if frontmatter is not empty
     if (!_.isEmpty(frontmatter)) {
-      exportsData = {
-        ...frontmatter,
-        error: error,
-      };
-
       const contentDigest = createContentDigest(node);
       const nodeData = {
         id: `${node.id} >>> JavascriptFrontmatter`,
@@ -128,9 +142,11 @@ async function onCreateNode({
           contentDigest,
           type: `JavascriptFrontmatter`,
         },
+        frontmatter: {
+          ...frontmatter,
+          error: error,
+        },
       };
-
-      nodeData.frontmatter = { ...exportsData };
 
       if (node.internal.type === `File`) {
         nodeData.fileAbsolutePath = node.absolutePath;

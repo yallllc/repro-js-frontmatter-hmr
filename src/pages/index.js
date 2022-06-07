@@ -1,19 +1,21 @@
 import * as React from "react";
+import { usePagesQuery } from "../use-page-query";
 
-export const frontmatter = {
-  name: "homepage",
+// eslint-disable-next-line
+const frontmatter = {
+  title: "homepage",
 };
 
 // styles
 const pageStyles = {
   /*
-  BUG REPRO: 
-  
-  When js frontmatter is exported above, hot reload fails - toggle comment on the 
-  2nd color line to test. If you comment out the frontmatter export, it works.
+  Mods gatsby-transformer-javascript-frontmatter so frontmatter can be declared
+  without `export`, so Gatsby fast refresh continues to work.
+
+  Toggle comment on the 2nd color line to test.
   */
   color: "blue",
-  color: "red",
+  // color: "red",
 
   padding: 96,
   fontFamily: "-apple-system, Roboto, sans-serif, serif",
@@ -139,9 +141,12 @@ const links = [
 
 // markup
 const IndexPage = () => {
+  const pages = usePagesQuery();
+
   return (
     <main style={pageStyles}>
       <title>Home Page</title>
+      <pre>{JSON.stringify(pages, null, 2)}</pre>
       <h1 style={headingStyles}>
         Congratulations
         <br />
